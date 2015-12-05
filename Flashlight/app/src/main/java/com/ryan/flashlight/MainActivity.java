@@ -31,9 +31,9 @@ public class MainActivity extends ActionBarActivity implements SurfaceHolder.Cal
     public SurfaceHolder mHolder;
     public Button powerButton;
     boolean on = false;
-    int unit = 50;// each unit=100ms
+    int unit = 50;// each unit=200ms
     long currentTime = 0;
-    final int[] sos = {1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1};
+    final Integer[] sos = {1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1,0};
     int counter = 0;
     int type = 0; //0 is light, 1=sos, 2=strobe
     ArrayList<Integer> SOSCode = new ArrayList<>();
@@ -49,8 +49,9 @@ public class MainActivity extends ActionBarActivity implements SurfaceHolder.Cal
         mHolder.addCallback(this);
         mCamera = Camera.open();
 
-        List sosList = Arrays.asList(sos);
-        SOSCode.addAll(sosList);
+        SOSCode = new ArrayList<Integer>(Arrays.asList(sos));
+
+        Log.e("SOS", SOSCode.get(1).toString());
         // powerButton=(Button) findViewById(R.id.flashLight_button);
 //        if (savedInstanceState != null) {
 //            on=savedInstanceState.getBoolean("flashLight");
@@ -84,7 +85,7 @@ public class MainActivity extends ActionBarActivity implements SurfaceHolder.Cal
         torch_on = resize(bm_on, resolution.x / 4, resolution.y / 4);
         torch_off = resize(bm_off, resolution.x / 4, resolution.y / 4);
         b.setImageBitmap(torch_off);
-        Button flashlight= (Button) findViewById(R.id.type_flashlight);
+        Button flashlight = (Button) findViewById(R.id.type_flashlight);
 
 
     }
@@ -128,67 +129,139 @@ public class MainActivity extends ActionBarActivity implements SurfaceHolder.Cal
     public void clickPower(View v) {
         ImageButton imageB = (ImageButton) findViewById(R.id.imageButton);
         if (on == false) {
+            imageB.setImageBitmap(torch_on);
             flashLightOn();
 
-            imageB.setImageBitmap(torch_on);
         } else {
-            flashLightOff();
             imageB.setImageBitmap(torch_off);
+            flashLightOff();
+
 
         }
     }
 
     public void clickSOS(View v) {
         type = 1;
-        Button sos= (Button) findViewById(R.id.type_SOS);
+        Button sos = (Button) findViewById(R.id.type_SOS);
         sos.setBackground(getResources().getDrawable(R.drawable.sos_clicked));
-        Button light=(Button) findViewById(R.id.type_flashlight);
+        Button light = (Button) findViewById(R.id.type_flashlight);
         light.setBackground(getResources().getDrawable(R.drawable.flashlight_not_clicked));
-
-
-
-    }
-    public void clickFlashlight(View v){
-        type=0;
-        Button sos= (Button) findViewById(R.id.type_SOS);
-        sos.setBackground(getResources().getDrawable(R.drawable.sos_not_clicked));
-        Button light=(Button) findViewById(R.id.type_flashlight);
-        light.setBackground(getResources().getDrawable(R.drawable.flashlight_clicked));
-    }
-
-    public void flashLightOn() {
 
         try {
             if (getPackageManager().hasSystemFeature(
                     PackageManager.FEATURE_CAMERA_FLASH)) {
-                Camera.Parameters params = mCamera.getParameters();
-                params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-                mCamera.setParameters(params);
-                if (on == false && type == 0) {// just light
-                    mCamera.startPreview();
-                    on = true;
-                } else if (on == false && type == 1) {//sos light
-
-                    new CountDownTimer(1450, 50) {
+                if(on == true ){
+                    counter = 0;
+                    new CountDownTimer(5600, 400) {
 
                         // sos is 600+300+1100+300+600
                         public void onTick(long millisUntilFinished) {
-                            if (SOSCode.get(counter) == 1) {
-                                flashLightOn();
-                            }
-                            if (SOSCode.get(counter) == 0) {
+                            if (on == false || type == 0) {
                                 flashLightOff();
+                                counter=0;
+                                cancel();
+                                Log.e("SOSCanel", "canceled");
                             }
+                            if (SOSCode.get(counter) == 1 && on==true) {
+                                Camera.Parameters params = mCamera.getParameters();
+                                params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                                mCamera.setParameters(params);
+                                mCamera.startPreview();
+                                Log.e("SOSon", SOSCode.get(counter).toString());
+
+                            }
+                            if (SOSCode.get(counter) == 0&& on==true) {
+                                Camera.Parameters params = mCamera.getParameters();
+                                params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                                mCamera.setParameters(params);
+                                Log.e("SOSoff", SOSCode.get(counter).toString());
+
+                            }
+                            counter++;
                         }
 
                         public void onFinish() {
+                            if(on==true){
+                                counter = 0;
+                                on = false;
+                                Log.e("SOS", "done");
+                                flashLightOn();}
+                        }
+                    }.start();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(getBaseContext(), "Exception flashLightOn()",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void clickFlashlight(View v) {
+        type = 0;
+        Button sos = (Button) findViewById(R.id.type_SOS);
+        sos.setBackground(getResources().getDrawable(R.drawable.sos_not_clicked));
+        Button light = (Button) findViewById(R.id.type_flashlight);
+        light.setBackground(getResources().getDrawable(R.drawable.flashlight_clicked));
+    }
+
+    public void flashLightOn() {
+Log.e("FLASHLIGHTon","called flashlight on");
+        try {
+            if (getPackageManager().hasSystemFeature(
+                    PackageManager.FEATURE_CAMERA_FLASH)) {
+
+
+                if (on == false && type == 0) {// just light
+                    Camera.Parameters params = mCamera.getParameters();
+                    params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                    mCamera.setParameters(params);
+                    mCamera.startPreview();
+                    on = true;
+                }
+                if (on == false && type == 1) {//sos light
+                    counter = 0;
+                    on = true;
+                    new CountDownTimer(14000, 500) {
+
+                        // sos is 600+300+1100+300+600
+                        public void onTick(long millisUntilFinished) {
+                            if (on == false || type == 0) {
+                                flashLightOff();
+                                mCamera.stopPreview();
+                                cancel();
+                                counter=0;
+                                Log.e("SOSCanel", "canceled");
+                            }
+                            if (SOSCode.get(counter) == 1 && on==true) {
+                                Camera.Parameters params = mCamera.getParameters();
+                                params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                                mCamera.setParameters(params);
+                                mCamera.startPreview();
+                                Log.e("SOSon", SOSCode.get(counter).toString());
+
+                            }
+                            if (SOSCode.get(counter) == 0 && on==true) {
+                                Camera.Parameters params = mCamera.getParameters();
+                                params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                                mCamera.setParameters(params);
+                                Log.e("SOSoff", SOSCode.get(counter).toString());
+
+                            }
+                            counter++;
+                        }
+
+                        public void onFinish() {
+                            if(on==true){
                             counter = 0;
+                            on = false;
+                            Log.e("SOS", "done");
+                            flashLightOn();}
                         }
                     }.start();
 
                 }
 
-//                powerButton.setText("Click to turn off");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -201,6 +274,7 @@ public class MainActivity extends ActionBarActivity implements SurfaceHolder.Cal
         try {
             if (getPackageManager().hasSystemFeature(
                     PackageManager.FEATURE_CAMERA_FLASH)) {
+                Log.e("Flashlightoff","OFF called");
                 Camera.Parameters params = mCamera.getParameters();
                 params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
                 mCamera.setParameters(params);
